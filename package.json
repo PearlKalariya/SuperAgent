@@ -1,0 +1,11 @@
+{
+  "name": "superagent-rag",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev:frontend": "npm --prefix frontend run dev",
+    "dev:backend": "uvicorn app.main:app --app-dir backend --reload",
+    "test:backend": "pytest backend/app/tests",
+    "lint:frontend": "npm --prefix frontend run lint"
+  }
+}
