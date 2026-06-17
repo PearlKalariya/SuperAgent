@@ -88,10 +88,12 @@ Build a modular agentic RAG platform with a Next.js 15 frontend and FastAPI back
 
 ### Deliverables
 
-- ChromaDB collection is created automatically.
-- Backend can embed, store, and retrieve text.
-- Uploaded files are chunked, embedded, and retrievable.
-- Query workflow includes retrieved context and citation metadata.
+- [x] ChromaDB collection is created automatically.
+- [x] Backend can embed, store, and retrieve text.
+- [x] Uploaded files are chunked, embedded, and retrievable.
+- [x] Query workflow includes retrieved context and citation metadata.
+- [x] Conversation memory is embedded, session-scoped, retrievable, and included with provenance.
+- [x] Retrieval combines vector scores with lexical reranking for exact uploaded-file matches.
 
 ## Phase 3.5: File Attachment and Document Ingestion
 

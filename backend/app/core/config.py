@@ -16,6 +16,9 @@ class Settings(BaseSettings):
     composio_api_key: str = ""
     chroma_persist_dir: str = ".chroma"
     chroma_collection: str = "superagent_memory"
+    max_upload_bytes: int = 2_000_000
+    max_upload_chunks: int = 80
+    allowed_upload_extensions: str = ".txt,.md,.markdown,.csv,.json,.log,.py,.js,.ts,.tsx,.html,.css,.pdf,.docx"
 
     model_config = SettingsConfigDict(env_file=BACKEND_DIR / ".env", env_file_encoding="utf-8")
 

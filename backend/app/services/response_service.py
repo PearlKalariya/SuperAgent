@@ -96,6 +96,7 @@ class ResponseService:
                 return response.text or self._scaffold_answer(query, citations, tool_traces)
             except Exception:
                 logger.exception("Gemini generation failed — returning scaffold answer.")
+                self._client = None
 
         return self._scaffold_answer(query, citations, tool_traces)
 
@@ -128,6 +129,7 @@ class ResponseService:
                 return
             except Exception:
                 logger.exception("Gemini streaming failed — falling back to scaffold tokens.")
+                self._client = None
 
         # Fallback: yield scaffold answer word-by-word
         for token in self._stream_tokens_sync(

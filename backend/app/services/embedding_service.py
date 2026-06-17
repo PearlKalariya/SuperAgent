@@ -1,7 +1,10 @@
 import hashlib
+import logging
 import math
 
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 class EmbeddingService:
@@ -17,12 +20,16 @@ class EmbeddingService:
 
     async def embed(self, text: str) -> list[float]:
         if self._client is not None:
-            result = self._client.models.embed_content(
-                model=settings.gemini_embedding_model,
-                contents=text,
-            )
-            embedding = result.embeddings[0].values
-            return list(embedding)
+            try:
+                result = self._client.models.embed_content(
+                    model=settings.gemini_embedding_model,
+                    contents=text,
+                )
+                embedding = result.embeddings[0].values
+                return list(embedding)
+            except Exception:
+                logger.exception("Gemini embedding failed; using deterministic local fallback.")
+                self._client = None
 
         return self._deterministic_embedding(text)
 

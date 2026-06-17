@@ -10,9 +10,13 @@ from app.models.streaming import StreamEvent
 from app.models.workflow import ToolTrace
 from app.services.composio_service import ComposioService
 from app.services.memory_service import MemoryService
+from app.services.orchestration_service import OrchestrationService
 from app.services.query_understanding_service import QueryUnderstandingService
 from app.services.response_service import ResponseService
 from app.services.retrieval_service import RetrievalService
+from app.services.tools.composio_tool import ComposioActionTool
+from app.services.tools.time_tool import TimeTool
+from pydantic import create_model
 
 
 class AgentService:
@@ -22,26 +26,45 @@ class AgentService:
         retrieval: RetrievalService,
         memory: MemoryService,
         composio: ComposioService,
+        orchestration: OrchestrationService,
         response: ResponseService,
     ) -> None:
         self.query_understanding = query_understanding
         self.retrieval = retrieval
         self.memory = memory
         self.composio = composio
+        self.orchestration = orchestration
         self.response = response
 
     async def run_query(self, request: QueryRequest) -> QueryResponse:
         run_id = self._new_run_id()
         try:
             workflow_input = self.query_understanding.structure(request.query)
-            citations = await self.retrieval.search(workflow_input.retrieval_query)
-            tool_traces = await self.composio.run_tools(workflow_input.normalized_query, citations)
+            citations = await self._retrieve_context(request.session_id, workflow_input.retrieval_query)
+            
+            tools = [
+                ComposioActionTool(
+                    self.composio,
+                    action_name="SERPAPI_SEARCH",
+                    description="Search the web for real-time information",
+                    schema=create_model("SerpApiSchema", q=(str, ...))
+                ),
+                TimeTool()
+            ]
+            
+            tool_inputs = {
+                "serpapi_search": {"q": workflow_input.normalized_query},
+                "get_current_time": {}
+            }
+            
+            tool_traces = await self.orchestration.execute_tools(tools, tool_inputs)
+            
             answer = self.response.compose_answer(
                 workflow_input.normalized_query,
                 citations,
                 tool_traces,
             )
-            self.memory.add_exchange(request.session_id, request.query, answer)
+            await self.memory.add_exchange(request.session_id, request.query, answer)
             return QueryResponse(
                 run_id=run_id,
                 session_id=request.session_id,
@@ -85,7 +108,23 @@ class AgentService:
                     "retrieval_started",
                     {"query": workflow_input.retrieval_query},
                 )
+                memory_citations = await self.memory.search(
+                    request.session_id,
+                    workflow_input.retrieval_query,
+                )
+                if memory_citations:
+                    yield self._event(
+                        run_id,
+                        request.session_id,
+                        "status",
+                        {
+                            "message": "Retrieved relevant conversation memory.",
+                            "memories": len(memory_citations),
+                        },
+                    )
+
                 citations = await self.retrieval.search(workflow_input.retrieval_query)
+                citations = self._dedupe_citations([*memory_citations, *citations])
                 yield self._event(
                     run_id,
                     request.session_id,
@@ -106,7 +145,22 @@ class AgentService:
                     "tool_call_started",
                     {"tool": "composio_orchestrator"},
                 )
-                tool_traces = await self.composio.run_tools(workflow_input.normalized_query, citations)
+                tools = [
+                    ComposioActionTool(
+                        self.composio,
+                        action_name="SERPAPI_SEARCH",
+                        description="Search the web for real-time information",
+                        schema=create_model("SerpApiSchema", q=(str, ...))
+                    ),
+                    TimeTool()
+                ]
+                
+                tool_inputs = {
+                    "serpapi_search": {"q": workflow_input.normalized_query},
+                    "get_current_time": {}
+                }
+                
+                tool_traces = await self.orchestration.execute_tools(tools, tool_inputs)
                 yield self._event(
                     run_id,
                     request.session_id,
@@ -125,7 +179,7 @@ class AgentService:
 
                 answer = "".join(answer_parts)
 
-                self.memory.add_exchange(request.session_id, request.query, answer)
+                await self.memory.add_exchange(request.session_id, request.query, answer)
                 yield self._event(
                     run_id,
                     request.session_id,
@@ -146,6 +200,22 @@ class AgentService:
 
         async for encoded in as_sse(events()):
             yield encoded
+
+    async def _retrieve_context(self, session_id: str, query: str) -> list[Citation]:
+        memory_citations = await self.memory.search(session_id, query)
+        retrieved_citations = await self.retrieval.search(query)
+        return self._dedupe_citations([*memory_citations, *retrieved_citations])
+
+    @staticmethod
+    def _dedupe_citations(citations: list[Citation]) -> list[Citation]:
+        seen: set[str] = set()
+        deduped: list[Citation] = []
+        for citation in citations:
+            if citation.id in seen:
+                continue
+            seen.add(citation.id)
+            deduped.append(citation)
+        return deduped
 
     @staticmethod
     def _new_run_id() -> str:

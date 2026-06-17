@@ -8,6 +8,7 @@ app/api/history.py
 app/api/query.py
 app/core/__init__.py
 app/core/config.py
+app/core/errors.py
 app/core/sse.py
 app/models/__init__.py
 app/models/citations.py
@@ -22,6 +23,7 @@ app/services/dependencies.py
 app/services/document_service.py
 app/services/embedding_service.py
 app/services/memory_service.py
+app/services/query_understanding_service.py
 app/services/response_service.py
 app/services/retrieval_service.py
 app/services/vector_store.py

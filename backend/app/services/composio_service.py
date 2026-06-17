@@ -47,6 +47,16 @@ class ComposioService:
         """True when backed by a real Composio connection."""
         return self._toolset is not None
 
+    def execute_action(self, action: str, params: dict[str, Any] | None = None):
+        """Public wrapper to execute a Composio action via the underlying toolset.
+
+        This preserves encapsulation and allows callers to invoke actions without
+        directly referencing the private `_toolset` attribute.
+        """
+        if self._toolset is None:
+            raise RuntimeError("Composio toolset not initialised")
+        return self._toolset.execute_action(action=action, params=params or {})
+
     async def run_tools(
         self,
         query: str,

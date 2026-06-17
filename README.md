@@ -11,7 +11,8 @@ SuperAgent RAG is a scaffold for an agentic retrieval workflow with a Next.js 15
 - Session history endpoint at `GET /api/history/{session_id}`.
 - File attachment flow for text-based documents that are chunked, embedded, and indexed for RAG answers.
 - Gemini embedding integration boundary with a deterministic local fallback.
-- Chroma-ready vector store boundary with local persisted fallback records.
+- ChromaDB-backed vector store with local persisted fallback records and hybrid vector/lexical reranking.
+- Semantic conversation memory indexed into the vector store by session.
 - Composio orchestration boundary with mock traces until credentials and actions are configured.
 - Architecture and streaming docs in `docs/`.
 
@@ -42,7 +43,7 @@ npm run dev
 
 If `npm` is not available, install Node.js first, then open a new terminal and rerun the frontend commands.
 
-The frontend expects the backend at `http://localhost:8000` by default.
+The frontend `.env.example` expects the backend at `http://localhost:8000` by default. If that port is busy, run the backend on another port and update `frontend/.env.local`.
 
 ## Environment Variables
 
@@ -79,11 +80,13 @@ Manual check:
 3. Submit a query from the console.
 4. Confirm status events, citations, tool traces, and answer tokens appear in real time.
 5. Attach a text or markdown file and ask the system to summarize or answer questions from it.
+6. Ask a follow-up question in the same session and confirm relevant conversation memory appears as cited context.
 
 ## Next Build Steps
 
 1. ~~Replace the response scaffold with a live LLM generation service.~~ ✅ Done — uses Gemini when `GEMINI_API_KEY` is set.
 2. ~~Connect `VectorStore` to ChromaDB directly.~~ ✅ Done — ChromaDB used when installed.
 3. ~~Add real Composio tool actions.~~ ✅ Done — uses Composio SDK when `COMPOSIO_API_KEY` is set.
-4. Expand document extraction beyond text-like files, such as PDF and DOCX.
-5. Persist memory beyond the current process.
+4. ~~Index conversational memory for semantic retrieval.~~ ✅ Done — memory records are stored with `kind=conversation_memory`.
+5. Expand document extraction beyond text-like files, such as PDF and DOCX.
+6. Add durable user/session storage beyond the local Chroma/vector layer.
