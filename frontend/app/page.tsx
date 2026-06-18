@@ -100,8 +100,19 @@ export default function Home() {
         setStatus("Stopped");
         return;
       }
+      const message = error instanceof Error ? error.message : "Streaming failed";
+      const assistantId = currentAssistantMessageIdRef.current;
+      if (assistantId) {
+        setMessages((current) =>
+          current.map((item) =>
+            item.id === assistantId
+              ? { ...item, text: `Sorry, I couldn't complete that request.\n\n${message}` }
+              : item,
+          ),
+        );
+      }
       setRunState("error");
-      setStatus(error instanceof Error ? error.message : "Streaming failed");
+      setStatus(message);
     }
   }
 

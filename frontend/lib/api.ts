@@ -10,17 +10,28 @@ type StreamQueryArgs = {
 };
 
 export async function streamQuery({ query, sessionId, signal, onEvent }: StreamQueryArgs) {
-  const response = await fetch(`${backendUrl}/api/query/stream`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({ query, session_id: sessionId }),
-    signal
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${backendUrl}/api/query/stream`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ query, session_id: sessionId }),
+      signal
+    });
+  } catch (error) {
+    if (signal.aborted) {
+      throw error;
+    }
+    throw new Error(
+      `Unable to reach the backend at ${backendUrl}. Make sure FastAPI is running on port 8000.`
+    );
+  }
 
   if (!response.ok || !response.body) {
-    throw new Error(`Query stream failed with status ${response.status}`);
+    const detail = await response.text();
+    throw new Error(detail || `Query stream failed with status ${response.status}`);
   }
 
   const reader = response.body.getReader();
@@ -41,6 +52,9 @@ export async function streamQuery({ query, sessionId, signal, onEvent }: StreamQ
       const event = parseSseChunk(chunk);
       if (event) {
         onEvent(event);
+        if (event.type === "error") {
+          throw new Error(String(event.payload.message ?? "The backend workflow failed."));
+        }
       }
     }
   }
