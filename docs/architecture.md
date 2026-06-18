@@ -1,36 +1,31 @@
-# SuperAgent RAG Architecture
+# Architecture
 
-## System Flow
+SuperAgent RAG is built as a modular application split between a Next.js 15 frontend and a FastAPI Python backend.
 
-1. The Next.js frontend sends a plain-English query to `POST /api/query/stream`.
-2. FastAPI creates a workflow run and emits Server-Sent Events.
-3. The agent service loads session history, retrieves relevant conversation memory, performs vector retrieval, invokes Composio tool actions, and streams answer tokens from Gemini.
-4. The frontend progressively renders status, citations, tool traces, and the final response.
-5. Conversation history is retained by session through the memory service.
+## Frontend-Backend Data Flow
 
-Uploaded files enter through `POST /api/documents`, where text is extracted, chunked, embedded, and stored in the vector index. Later queries retrieve those chunks and cite the original filename. Conversation turns are also embedded and stored as `conversation_memory` records scoped by `session_id`.
+1. **User Input:** The user submits a query via the Next.js UI.
+2. **API Request:** The Next.js API client sends a POST request with the query and a unique `session_id` to the FastAPI backend.
+3. **Agent Orchestration:** 
+   - The FastAPI backend receives the request and initializes the agent workflow.
+   - The backend uses Server-Sent Events (SSE) to stream updates (e.g., status changes, tool execution traces, retrieved citations, and generated tokens) back to the frontend.
+4. **Progressive Rendering:** The frontend parses the SSE events and progressively renders the response, citations, and agent state.
 
-## Backend Boundaries
+## Service Boundaries
 
-- `api/`: FastAPI route definitions.
-- `models/`: Shared response, streaming, citation, and workflow contracts.
-- `services/agent_service.py`: Workflow coordinator.
-- `services/embedding_service.py`: Gemini embedding boundary with deterministic local fallback.
-- `services/vector_store.py`: ChromaDB-backed vector retrieval with deterministic local JSON fallback, metadata filtering, and hybrid vector/lexical reranking.
-- `services/document_service.py`: Upload ingestion, text extraction, chunking, and indexing.
-- `services/composio_service.py`: Composio SDK tool orchestration. Falls back to mock traces when `COMPOSIO_API_KEY` is not set.
-- `services/memory_service.py`: Session-scoped chat history plus semantic memory indexing and retrieval.
-- `services/response_service.py`: Gemini LLM generation with streaming. Falls back to deterministic scaffold answers when `GEMINI_API_KEY` is not set.
+The backend is composed of several decoupled services:
 
-## Frontend Boundaries
+- **Agent Service:** Orchestrates the multi-step workflow, combining retrieval, memory, tool use, and response generation.
+- **Embedding Service:** Integrates with Gemini (or falls back to a deterministic method) to encode text into vector representations.
+- **Vector Store:** Manages communication with ChromaDB for storing and searching vector embeddings.
+- **Document Service:** Handles file uploads, text extraction, chunking, and indexing.
+- **Memory Service:** Stores conversation history into the vector store, scoped by `session_id`, allowing the agent to recall past context semantically.
+- **Retrieval Service:** Queries the vector store for context relevant to the user's input, returning ranked citations.
+- **Orchestration Service:** Integrates with Composio to execute external tools and track their traces.
 
-- `app/page.tsx`: Main single-page console.
-- `lib/api.ts`: Streaming API client and SSE parser.
-- `lib/types.ts`: TypeScript mirror of backend event, citation, and trace contracts.
+## Retrieval and Memory Design
 
-## Extension Points
-
-- Register additional Composio actions in `ComposioService._live_actions`.
-- Add persistent database-backed memory for multi-user sessions.
-- Expand document extraction to PDF and DOCX formats.
-- Add authentication and per-user session isolation.
+Documents and conversational history are treated uniformly as semantic knowledge:
+- **Documents:** Text extracted from uploaded files is chunked, embedded, and indexed.
+- **Memory:** Exchanges (user query + assistant response) are embedded and indexed with a `session_id` and a `kind="conversation_memory"` metadata tag.
+- **Search:** The retrieval service can pull from both documents and past conversation turns to ground the LLM's answers.

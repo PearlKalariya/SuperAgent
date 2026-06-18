@@ -90,3 +90,12 @@ Manual check:
 4. ~~Index conversational memory for semantic retrieval.~~ ✅ Done — memory records are stored with `kind=conversation_memory`.
 5. Expand document extraction beyond text-like files, such as PDF and DOCX.
 6. Add durable user/session storage beyond the local Chroma/vector layer.
+
+## Phase 7: Documentation, Polish & Production Readiness
+
+Phase 7 focuses on polishing the project for handoff and easier local/production use:
+
+- Update and expand documentation (this README, `docs/architecture.md`, `docs/api_sse.md`).
+- Provide troubleshooting notes for `Gemini`, `Composio`, and `ChromaDB` (see `docs/troubleshooting.md`).
+- Add a deployment guide with recommended environment settings and security notes (`docs/deployment.md`).
+- Add CI/monitoring recommendations and a QA checklist for release.
